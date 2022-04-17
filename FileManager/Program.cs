@@ -14,9 +14,9 @@ namespace FileManager
     /// </summary>
     class Program
     {
-        private static DirectoryInfo s_currentDirectory;
-
-        private static List<string> s_availableOperations = new()
+        private static DirectoryInfo _currentDirectory;
+        
+        private static readonly List<string> _availableOperations = new()
         {
             "drives",
             "dir",
@@ -32,7 +32,7 @@ namespace FileManager
             "dirrec"
         };
 
-        private static List<string> s_availableEncodings = new()
+        private static readonly List<string> _availableEncodings = new()
         {
             "utf-8",
             "utf-16",
@@ -50,7 +50,7 @@ namespace FileManager
             
             Thread.CurrentThread.CurrentUICulture = CultureInfo.GetCultureInfo("ru-RU");
 
-            s_currentDirectory = new DirectoryInfo(Directory.GetCurrentDirectory());
+            _currentDirectory = new DirectoryInfo(Directory.GetCurrentDirectory());
 
             bool programContinues = true;
             do
@@ -73,19 +73,18 @@ namespace FileManager
         /// <returns>Массив с названием операции и аргументами.</returns>
         static string[] InputCorrectOperation()
         {
-            string[] operation;
-            while (true) 
+            string[] operation = Array.Empty<string>();
+            bool operationIsCorrect = false;
+            while (!operationIsCorrect) 
             {
-                Console.Write($"{s_currentDirectory.FullName}: ");
+                Console.Write($"{_currentDirectory.FullName}: ");
                 operation = Console.ReadLine()?.Split();
                 
                 if (operation == null || operation.Length == 0 || string.IsNullOrEmpty(operation[0]))
-                {
                     continue;
-                }
 
                 var operationName = operation[0];
-                if (!s_availableOperations.Contains(operationName))
+                if (!_availableOperations.Contains(operationName))
                 {
                     PrintError($"Операция `{operationName}` не существует.");
                     continue;
@@ -104,7 +103,7 @@ namespace FileManager
                 }
                 
                 if (CheckOperationArguments(operation))
-                    break;
+                    operationIsCorrect = true;
             }
             return operation;
         }
@@ -194,7 +193,7 @@ namespace FileManager
         /// <returns>true, если кодировка корректна; false иначе.</returns>
         static bool IsCorrectEncoding(string encoding)
         {
-            if (!s_availableEncodings.Contains(encoding))
+            if (!_availableEncodings.Contains(encoding))
                 PrintError($"Некорректная кодировка `{encoding}`.");
             else
                 return true;
@@ -229,7 +228,7 @@ namespace FileManager
                     PrintDirectory(operation.Length == 2 ? operation[1] : "*");
                     break;
                 case "dirrec":
-                    RecursivePrintFiles(s_currentDirectory, operation.Length == 2 ? operation[1] : "*");
+                    RecursivePrintFiles(_currentDirectory, operation.Length == 2 ? operation[1] : "*");
                     break;
                 case "print":
                     PrintFile(operation[1], operation.Length == 3 ? operation[2] : "utf-8");
@@ -275,8 +274,8 @@ namespace FileManager
         /// <param name="newDirectoryPath">Путь к новой директории.</param>
         static void ChangeCurrentDirectory(string newDirectoryPath)
         {
-            s_currentDirectory = new DirectoryInfo(newDirectoryPath);
-            Directory.SetCurrentDirectory(s_currentDirectory.FullName);
+            _currentDirectory = new DirectoryInfo(newDirectoryPath);
+            Directory.SetCurrentDirectory(_currentDirectory.FullName);
         }
 
         /// <summary>
@@ -285,12 +284,12 @@ namespace FileManager
         /// <param name="mask">Маска для поиска файлов и директорий.</param>
         static void PrintDirectory(string mask)
         {
-            foreach (var file in s_currentDirectory.GetFiles(mask))
+            foreach (var file in _currentDirectory.GetFiles(mask))
             {
                 Console.WriteLine($"{file.Name} ({file.Length} b)");
             }
 
-            foreach (var directory in s_currentDirectory.GetDirectories(mask))
+            foreach (var directory in _currentDirectory.GetDirectories(mask))
             {
                 Console.WriteLine(directory.Name);
             }
@@ -305,7 +304,7 @@ namespace FileManager
         {
             foreach (var file in directory.GetFiles(mask))
             {
-                string relativePath = Path.GetRelativePath(s_currentDirectory.FullName, directory.FullName);
+                string relativePath = Path.GetRelativePath(_currentDirectory.FullName, directory.FullName);
                 Console.WriteLine($"{relativePath}{Path.DirectorySeparatorChar}{file.Name} ({file.Length} b)");
             }
             
