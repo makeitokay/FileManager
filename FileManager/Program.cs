@@ -15,35 +15,11 @@ namespace FileManager
     class Program
     {
         private static DirectoryInfo _currentDirectory;
-        
-        private static readonly List<string> _availableOperations = new()
-        {
-            "drives",
-            "dir",
-            "cd",
-            "print",
-            "copy",
-            "move",
-            "remove",
-            "create",
-            "concat",
-            "help",
-            "exit",
-            "dirrec"
-        };
-
-        private static readonly List<string> _availableEncodings = new()
-        {
-            "utf-8",
-            "utf-16",
-            "utf-32",
-            "us-ascii"
-        };
 
         /// <summary>
         /// Точка входа в программу; содержит главный цикл, обрабатывающий операции пользователя.
         /// </summary>
-        /// <param name="args">---</param>
+        /// <param name="args"></param>
         static void Main(string[] args)
         {
             PrintOperations();
@@ -84,127 +60,29 @@ namespace FileManager
                     continue;
 
                 var operationName = operation[0];
-                if (!_availableOperations.Contains(operationName))
+                if (!Validator.OperationExists(operationName))
                 {
                     PrintError($"Операция `{operationName}` не существует.");
                     continue;
                 }
                 
-                if (Regex.Match(operationName, "drives|dir|dirrec|help|exit").Success)
-                    break;
-
-                if (Regex.Match(operationName, "cd|remove").Success && operation.Length != 2
-                    || Regex.Match(operationName, "copy|^move").Success && operation.Length != 3 
-                    || Regex.Match(operationName, "print|create").Success && operation.Length is not (>= 2 and <= 3) 
-                    || Regex.Match(operationName, "concat").Success && operation.Length < 3)
+                if (!Validator.CheckArgumentsCount(operationName, operation.Length))
                 {
                     PrintError($"Неверное количество аргументов для операции `{operationName}`.");
                     continue;
                 }
                 
-                if (CheckOperationArguments(operation))
+                if (Validator.CheckOperationArguments(operation))
                     operationIsCorrect = true;
             }
             return operation;
         }
 
         /// <summary>
-        /// Проверяет введеные аргументы для каждой операции.
-        /// </summary>
-        /// <param name="operation"></param>
-        /// <returns>true, если аргументы корректны; false иначе.</returns>
-        static bool CheckOperationArguments(string[] operation) => operation[0] switch
-        {
-            "cd" => IsDirectory(operation[1]),
-            "print" => IsFile(operation[1]) 
-                       && CheckTxtExtension(operation[1])
-                       && (operation.Length != 3 || IsCorrectEncoding(operation[2])),
-            "copy" => IsFile(operation[1]) && !ArePathsEqual(operation[1], operation[2]) && HasFilename(operation[2]),
-            "move" => IsFile(operation[1]) && !ArePathsEqual(operation[1], operation[2]) && HasFilename(operation[2]),
-            "remove" => IsFile(operation[1]),
-            "create" => CheckTxtExtension(operation[1]) && (operation.Length != 3 || IsCorrectEncoding(operation[2])),
-            "concat" => operation[1..].All(IsFile) && operation[1..].All(CheckTxtExtension),
-            _ => true
-        };
-
-        /// <summary>
-        /// Проверяет, содержится ли имя какого-то файла в указанном пути.
-        /// </summary>
-        /// <param name="path">Путь, который необходимо проверить.</param>
-        /// <returns>true, если содержится; false иначе.</returns>
-        static bool HasFilename(string path)
-        {
-            if (string.IsNullOrEmpty(Path.GetFileName(path)))
-                PrintError("В пути не найдено имя нового файла.");
-            else
-                return true;
-            return false;
-        }
-
-        /// <summary>
-        /// Проверяет, является ли указанный путь существующей директорией.
-        /// </summary>
-        /// <param name="path">Путь, который необходимо проверить.</param>
-        /// <returns>true, если директория существует; false иначе.</returns>
-        static bool IsDirectory(string path)
-        {
-            if (!Directory.Exists(path))
-                PrintError($"Не найдена директория `{path}`.");
-            else
-                return true;
-            return false;
-        }
-        
-        /// <summary>
-        /// Проверяет, является ли указанный путь существующим файлом.
-        /// </summary>
-        /// <param name="path">Путь, который необходимо проверить.</param>
-        /// <returns>true, если файл существует; false иначе.</returns>
-        static bool IsFile(string path)
-        {
-            if (!File.Exists(path))
-                PrintError($"Не найден файл `{path}`.");
-            else
-                return true;
-            return false;
-        }
-
-        /// <summary>
-        /// Проверяет, эквиваленты ли указанные пути (ведут в одно и то же место/файл).
-        /// </summary>
-        /// <param name="path1">Путь 1.</param>
-        /// <param name="path2">Путь 2.</param>
-        /// <returns>true, если пути одинаковы; false иначе.</returns>
-        static bool ArePathsEqual(string path1, string path2)
-        {
-            string absolutePath1 = Path.GetFullPath(path1);
-            string absolutePath2 = Path.GetFullPath(path2);
-            if (absolutePath1 == absolutePath2)
-                PrintError("Пути ведут к одному и тому же файлу.");
-            else
-                return false;
-            return true;
-        }
-
-        /// <summary>
-        /// Проверяет, указана ли корректная поддерживаемая в программе кодировка.
-        /// </summary>
-        /// <param name="encoding">Указанная кодировка.</param>
-        /// <returns>true, если кодировка корректна; false иначе.</returns>
-        static bool IsCorrectEncoding(string encoding)
-        {
-            if (!_availableEncodings.Contains(encoding))
-                PrintError($"Некорректная кодировка `{encoding}`.");
-            else
-                return true;
-            return false;
-        }
-
-        /// <summary>
         /// Выводит на экран ошибку.
         /// </summary>
         /// <param name="message">Доп. сообщение для пользователя.</param>
-        static void PrintError(string message)
+        public static void PrintError(string message)
         {
             Console.WriteLine($"ERROR: {message}");
         }
@@ -340,13 +218,6 @@ namespace FileManager
         }
 
         /// <summary>
-        /// Проверяет, существует ли файл или директория с указанным именем. 
-        /// </summary>
-        /// <param name="path">Путь, который необходимо проверить.</param>
-        /// <returns>true, если имя занято; false иначе.</returns>
-        static bool IsFileOrDirectoryExists(string path) => File.Exists(path) || Directory.Exists(path);
-
-        /// <summary>
         /// Спрашивает у пользователя, заменить ли объект по существующему пути.
         /// </summary>
         /// <param name="path">Путь, о котором необходимо спросить.</param>
@@ -376,7 +247,7 @@ namespace FileManager
         static void CopyFile(string filePath, string newFilePath)
         {
             bool replaceFile = false;
-            if (IsFileOrDirectoryExists(newFilePath))
+            if (Validator.IsFileOrDirectoryExists(newFilePath))
             {
                 replaceFile = AskAboutReplace(newFilePath);
                 if (!replaceFile) 
@@ -395,7 +266,7 @@ namespace FileManager
         static void MoveFile(string sourceFilePath, string destinationFilePath)
         {
             bool replaceFile = false;
-            if (IsFileOrDirectoryExists(destinationFilePath))
+            if (Validator.IsFileOrDirectoryExists(destinationFilePath))
             {
                 replaceFile = AskAboutReplace(destinationFilePath);
                 if (!replaceFile) 
@@ -442,22 +313,6 @@ namespace FileManager
             Console.WriteLine(result);
         }
 
-        /// <summary>
-        /// Проверяет, имеет ли файл расширение `.txt`.
-        /// </summary>
-        /// <param name="filePath">Путь к файлу, который необходимо проверить.</param>
-        /// <returns>true, если расширение `.txt`; false иначе.</returns>
-        static bool CheckTxtExtension(string filePath)
-        {
-            string extension = Path.GetExtension(filePath);
-            if (extension != ".txt")
-                PrintError("Указанный файл не имеет расширение `.txt`.");
-            else
-                return true;
-            
-            return false;
-        }
-        
         /// <summary>
         /// Выводит на экран список операций и инструкцию пользования программой.
         /// </summary>
